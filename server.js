@@ -14,10 +14,19 @@ connectDB()
 app.use(express.json())
 app.use(cookieParser())
 
-const allowedOrigins = ['https://auth-bimo.vercel.app']
 // const allowedOrigins = ['http://localhost:5173']
+// const allowedOrigins = ['https://auth-bimo.vercel.app']
 
-app.use(cors({origin: allowedOrigins, credentials: true}))
+// app.use(cors({origin: allowedOrigins, credentials: true}))
+
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://auth-bimo.vercel.app'
+  ],
+  credentials: true
+}));
+
 
 // API END-POINTS
 app.use('/api/auth', authRoute)
