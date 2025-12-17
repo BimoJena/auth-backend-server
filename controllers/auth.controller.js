@@ -57,6 +57,7 @@ import {EMAIL_VERIFY_TEMPLATE, PASSWORD_RESET_TEMPLATE} from '../config/emailTem
 //     }
 // }
 
+// ===================== REGISTER =====================
 export const register = async (req, res) => {
   console.log("👉 REGISTER API HIT");
   console.log("📦 Request Body:", req.body);
@@ -97,8 +98,6 @@ export const register = async (req, res) => {
     await user.save();
     console.log("✅ User saved:", user._id.toString());
 
-    console.log("🔑 JWT_SECRET present:", !!process.env.JWT_SECRET);
-
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
@@ -113,18 +112,17 @@ export const register = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    console.log("📧 EMAIL_FROM:", process.env.EMAIL_FROM);
-
+    // Send email asynchronously (fire & forget)
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
       subject: "Welcome to Authentication Project",
-      text: `Welcome ${name} to Authentication Project created by BIMOCHAN JENA. Your account has been created with email: ${email}`
+      text: `Welcome ${name}! Your account is successfully created.`
     };
 
-    console.log("📨 Sending welcome email...");
-    await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent successfully");
+    transporter.sendMail(mailOptions)
+      .then(() => console.log("📨 Welcome email sent"))
+      .catch(err => console.error("📧 Email send failed:", err.message));
 
     return res.status(200).json({
       success: true,
@@ -140,6 +138,7 @@ export const register = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -199,42 +198,90 @@ export const logout = async (req,res) => {
 
 
 // Send EmailVerification OTP
-export const sendVerifyOtp = async (req,res) => {
-    try{
-        const userId = req.userId
-        const user = await User.findById(userId);
+// export const sendVerifyOtp = async (req,res) => {
+//     try{
+//         const userId = req.userId
+//         const user = await User.findById(userId);
 
-        if(!user){
-            return res.status(404).json({success: false, message: "User not found"});
-        }
+//         if(!user){
+//             return res.status(404).json({success: false, message: "User not found"});
+//         }
 
-        if(user.isAccountVerified){
-            return res.status(400).json({success: false, message: "Account Already Verified."})
-        }
-        const otp = String(Math.floor(100000 + Math.random() * 900000))
+//         if(user.isAccountVerified){
+//             return res.status(400).json({success: false, message: "Account Already Verified."})
+//         }
+//         const otp = String(Math.floor(100000 + Math.random() * 900000))
 
-        user.verifyOtp = otp
-        user.verifyOtpExipreAt = Date.now() + 24 * 60 * 60 * 1000 // 24 hours expiry
+//         user.verifyOtp = otp
+//         user.verifyOtpExipreAt = Date.now() + 24 * 60 * 60 * 1000 // 24 hours expiry
 
-        await user.save()
+//         await user.save()
 
-        // send verification OTP
-        const mailOptions = {
-            from: process.env.EMAIL_FROM,
-            to: user.email,
-            subject: 'Account Verification OTP',
-            replyTo: process.env.EMAIL_REPLY_TO,
-            // text: `Your OTP is ${otp}. Verify your account using this OTP within 24hours from now.`,
-            html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
-        }
-        await transporter.sendMail(mailOptions)
+//         // send verification OTP
+//         const mailOptions = {
+//             from: process.env.EMAIL_FROM,
+//             to: user.email,
+//             subject: 'Account Verification OTP',
+//             replyTo: process.env.EMAIL_REPLY_TO,
+//             // text: `Your OTP is ${otp}. Verify your account using this OTP within 24hours from now.`,
+//             html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
+//         }
+//         await transporter.sendMail(mailOptions)
 
-        return res.status(200).json({success: true, message: "Account Verification OTP sent successfully."})
+//         return res.status(200).json({success: true, message: "Account Verification OTP sent successfully."})
 
-    }catch(err){
-        return res.status(500).json({success: false, message: "Internal Server Error.",error: err.message})
+//     }catch(err){
+//         return res.status(500).json({success: false, message: "Internal Server Error.",error: err.message})
+//     }
+// }
+
+// ===================== SEND VERIFY OTP =====================
+export const sendVerifyOtp = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
-}
+
+    if (user.isAccountVerified) {
+      return res.status(400).json({ success: false, message: "Account Already Verified." });
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    user.verifyOtp = otp;
+    user.verifyOtpExipreAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours expiry
+    await user.save();
+
+    // Send OTP asynchronously
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: user.email,
+      subject: 'Account Verification OTP',
+      replyTo: process.env.EMAIL_REPLY_TO,
+      html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
+    };
+
+    transporter.sendMail(mailOptions)
+      .then(() => console.log("📨 Verification OTP sent"))
+      .catch(err => console.error("📧 OTP send failed:", err.message));
+
+    return res.status(200).json({
+      success: true,
+      message: "Account Verification OTP generated successfully."
+    });
+
+  } catch (err) {
+    console.error("🔥 SEND VERIFY OTP ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: err.message
+    });
+  }
+};
+
 
 
 // Get OTP and Verify Account
@@ -281,40 +328,87 @@ export const isAuthenticated = async(req,res) => {
 
 
 // send OTP to reset password
-export const sendResetOTP = async (req,res) => {
-    const {email} = req.body
-    if(!email){
-        return res.status(400).json({success: false, message: "Email is required."})
+// export const sendResetOTP = async (req,res) => {
+//     const {email} = req.body
+//     if(!email){
+//         return res.status(400).json({success: false, message: "Email is required."})
+//     }
+//     try{
+
+//         const user = await User.findOne({email})
+//         if(!user){
+//             return res.status(401).json({success: false, message: "User not found."})
+//         }
+
+//         const otp = String(Math.floor(100000 + Math.random() * 900000))
+//         user.resetOtp = otp
+//         user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000 // 15mins in milisecond
+
+//         await user.save()
+
+//         const mailOptions = {
+//             from: process.env.EMAIL_FROM,
+//             to: user.email,
+//             subject: 'Reset Password OTP',
+//             replyTo: process.env.EMAIL_REPLY_TO,
+//             // text: `Here is the OTP: ${otp} for to reset your password. This OTP is valid for 15 mins only.`,
+//             html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
+//         }
+//         await transporter.sendMail(mailOptions)
+
+//         return res.status(200).json({success: true, message: "Reset Password OTP sent successfully."})
+
+//     }catch(err){
+//         return res.status(500).json({success: false, message: "Internal Server Error", error: err.message})
+//     }
+// }
+
+// ===================== SEND RESET OTP =====================
+export const sendResetOTP = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Email is required." });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found." });
     }
-    try{
 
-        const user = await User.findOne({email})
-        if(!user){
-            return res.status(401).json({success: false, message: "User not found."})
-        }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    user.resetOtp = otp;
+    user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+    await user.save();
 
-        const otp = String(Math.floor(100000 + Math.random() * 900000))
-        user.resetOtp = otp
-        user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000 // 15mins in milisecond
+    // Send OTP asynchronously
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: user.email,
+      subject: 'Reset Password OTP',
+      replyTo: process.env.EMAIL_REPLY_TO,
+      html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
+    };
 
-        await user.save()
+    transporter.sendMail(mailOptions)
+      .then(() => console.log("📨 Reset OTP sent"))
+      .catch(err => console.error("📧 Reset OTP send failed:", err.message));
 
-        const mailOptions = {
-            from: process.env.EMAIL_FROM,
-            to: user.email,
-            subject: 'Reset Password OTP',
-            replyTo: process.env.EMAIL_REPLY_TO,
-            // text: `Here is the OTP: ${otp} for to reset your password. This OTP is valid for 15 mins only.`,
-            html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
-        }
-        await transporter.sendMail(mailOptions)
+    return res.status(200).json({
+      success: true,
+      message: "Reset Password OTP generated successfully."
+    });
 
-        return res.status(200).json({success: true, message: "Reset Password OTP sent successfully."})
+  } catch (err) {
+    console.error("🔥 SEND RESET OTP ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: err.message
+    });
+  }
+};
 
-    }catch(err){
-        return res.status(500).json({success: false, message: "Internal Server Error", error: err.message})
-    }
-}
 
 
 // get OTP and Reset Password
