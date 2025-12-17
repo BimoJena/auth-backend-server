@@ -139,7 +139,7 @@ export const sendVerifyOtp = async (req,res) => {
             to: user.email,
             subject: 'Account Verification OTP',
             // text: `Your OTP is ${otp}. Verify your account using this OTP within 24hours from now.`,
-            html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
+            html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
         }
         await transporter.sendMail(mailOptions)
 
