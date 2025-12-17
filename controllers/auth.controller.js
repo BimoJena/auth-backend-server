@@ -7,55 +7,140 @@ import {EMAIL_VERIFY_TEMPLATE, PASSWORD_RESET_TEMPLATE} from '../config/emailTem
 
 
 // register function
-export const register = async (req,res) => {
-    const {name, email, password} = req.body
-    if(!name || !email || !password){
-        return res.status(400).json({success: false, message: "All Fields Are Required."})
-    }
-    try{
-        const userExist = await User.findOne({email})
-        if(userExist){
-            return res.status(401).json({success: false, message: "User Already Exist."})
-        }
-        const hashPassword = await bcyrpt.hash(password, 10)
+// export const register = async (req,res) => {
+//     const {name, email, password} = req.body
+//     if(!name || !email || !password){
+//         return res.status(400).json({success: false, message: "All Fields Are Required."})
+//     }
+//     try{
+//         const userExist = await User.findOne({email})
+//         if(userExist){
+//             return res.status(401).json({success: false, message: "User Already Exist."})
+//         }
+//         const hashPassword = await bcyrpt.hash(password, 10)
 
-        const user = new User({
-            name, 
-            email,
-            password: hashPassword
-        })
-        await user.save()
+//         const user = new User({
+//             name, 
+//             email,
+//             password: hashPassword
+//         })
+//         await user.save()
 
-        const token = jwt.sign(
-            {id: user._id},
-            process.env.JWT_SECRET,
-            {expiresIn: '7d'}
-        )
+//         const token = jwt.sign(
+//             {id: user._id},
+//             process.env.JWT_SECRET,
+//             {expiresIn: '7d'}
+//         )
         
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none': 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 //7days in milisecond
-        })
+//         res.cookie('token', token, {
+//             httpOnly: true,
+//             secure: process.env.NODE_ENV === 'production',
+//             sameSite: process.env.NODE_ENV === 'production' ? 'none': 'strict',
+//             maxAge: 7 * 24 * 60 * 60 * 1000 //7days in milisecond
+//         })
 
-        // console.log("TRANSPORT AUTH:", transporter.options.auth); //debugging
+//         // console.log("TRANSPORT AUTH:", transporter.options.auth); //debugging
 
-        // send welcome email 
-        const mailOptions = {
-            from: process.env.EMAIL_FROM,
-            to: email,
-            subject: 'Welcome to Authentication Project',
-            text: `Welcome ${name} to Authentication Project created by BIMOCHAN JENA. Your Account is successfully created on this website with your email: ${email}`
-        }
-        await transporter.sendMail(mailOptions)
+//         // send welcome email 
+//         const mailOptions = {
+//             from: process.env.EMAIL_FROM,
+//             to: email,
+//             subject: 'Welcome to Authentication Project',
+//             text: `Welcome ${name} to Authentication Project created by BIMOCHAN JENA. Your Account is successfully created on this website with your email: ${email}`
+//         }
+//         await transporter.sendMail(mailOptions)
 
-        return res.status(200).json({success: true, message: "User Registered Successfully."})
+//         return res.status(200).json({success: true, message: "User Registered Successfully."})
 
-    }catch(err){
-        return res.status(500).json({success: false, message: "Internal Server Error.", error: err.message})
+//     }catch(err){
+//         return res.status(500).json({success: false, message: "Internal Server Error.", error: err.message})
+//     }
+// }
+
+export const register = async (req, res) => {
+  console.log("👉 REGISTER API HIT");
+  console.log("📦 Request Body:", req.body);
+
+  const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    console.log("❌ Missing fields");
+    return res.status(400).json({
+      success: false,
+      message: "All Fields Are Required."
+    });
+  }
+
+  try {
+    console.log("🔍 Checking if user already exists...");
+    const userExist = await User.findOne({ email });
+    console.log("User exists:", !!userExist);
+
+    if (userExist) {
+      return res.status(401).json({
+        success: false,
+        message: "User Already Exist."
+      });
     }
-}
+
+    console.log("🔐 Hashing password...");
+    const hashPassword = await bcyrpt.hash(password, 10);
+    console.log("Password hashed successfully");
+
+    console.log("💾 Creating user...");
+    const user = new User({
+      name,
+      email,
+      password: hashPassword
+    });
+
+    await user.save();
+    console.log("✅ User saved:", user._id.toString());
+
+    console.log("🔑 JWT_SECRET present:", !!process.env.JWT_SECRET);
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    console.log("🍪 Setting auth cookie...");
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    console.log("📧 EMAIL_FROM:", process.env.EMAIL_FROM);
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: "Welcome to Authentication Project",
+      text: `Welcome ${name} to Authentication Project created by BIMOCHAN JENA. Your account has been created with email: ${email}`
+    };
+
+    console.log("📨 Sending welcome email...");
+    await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent successfully");
+
+    return res.status(200).json({
+      success: true,
+      message: "User Registered Successfully."
+    });
+
+  } catch (err) {
+    console.error("🔥 REGISTER ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: err.message
+    });
+  }
+};
+
 
 
 // login function
