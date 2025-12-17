@@ -92,6 +92,11 @@ export const EMAIL_VERIFY_TEMPLATE = `
                         <td style="padding: 0 0 10px; font-size: 14px; line-height: 150%;">
                           This OTP is valid for 24 hours.
                         </td>
+                        <td style="padding: 0 0 10px; font-size: 14px; line-height: 150%;">
+                          <p style="font-size:12px;color:#888;">
+                            This is an automated message. Please do not reply to this email.
+                          </p>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -202,6 +207,11 @@ export const PASSWORD_RESET_TEMPLATE = `
                       <tr>
                         <td style="padding: 0 0 10px; font-size: 14px; line-height: 150%;">
                           The password reset otp is only valid for the next 15 minutes.
+                        </td>
+                        <td style="padding: 0 0 10px; font-size: 14px; line-height: 150%;">
+                          <p style="font-size:12px;color:#888;">
+                            This is an automated message. Please do not reply to this email.
+                          </p>
                         </td>
                       </tr>
                     </tbody>

@@ -138,6 +138,7 @@ export const sendVerifyOtp = async (req,res) => {
             from: process.env.EMAIL_FROM,
             to: user.email,
             subject: 'Account Verification OTP',
+            replyTo: process.env.EMAIL_REPLY_TO,
             // text: `Your OTP is ${otp}. Verify your account using this OTP within 24hours from now.`,
             html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
         }
@@ -217,6 +218,7 @@ export const sendResetOTP = async (req,res) => {
             from: process.env.EMAIL_FROM,
             to: user.email,
             subject: 'Reset Password OTP',
+            replyTo: process.env.EMAIL_REPLY_TO,
             // text: `Here is the OTP: ${otp} for to reset your password. This OTP is valid for 15 mins only.`,
             html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
         }
