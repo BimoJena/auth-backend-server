@@ -58,11 +58,84 @@ import { resend } from '../config/resend.js'
 // }
 
 // ===================== REGISTER =====================
+// export const register = async (req, res) => {
+
+//     const { name, email, password } = req.body;
+
+//     if (!name || !email || !password) {
+//         return res.status(400).json({
+//             success: false,
+//             message: "All Fields Are Required."
+//         });
+//     }
+
+//     try {
+//         const userExist = await User.findOne({ email });
+
+//         if (userExist) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "User Already Exist."
+//             });
+//         }
+
+//         const hashPassword = await bcyrpt.hash(password, 10);
+
+//         const user = new User({
+//             name,
+//             email,
+//             password: hashPassword
+//         });
+
+//         await user.save();
+
+//         const token = jwt.sign(
+//             { id: user._id },
+//             process.env.JWT_SECRET,
+//             { expiresIn: "7d" }
+//         );
+
+//         res.cookie("token", token, {
+//             httpOnly: true,
+//             secure: process.env.NODE_ENV === "production",
+//             sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+//             maxAge: 7 * 24 * 60 * 60 * 1000
+//         });
+
+//         // Send email asynchronously (fire & forget)
+//         resend.emails.send({
+//             from: "Auth System <onboarding@email.wevadmedia.com>",
+//             to: user.email,
+//             subject: "Welcome to Authentication Project",
+//             replyTo: process.env.EMAIL_REPLY_TO,
+//             text: `Welcome ${user.name} to Authentication Project created by BIMOCHAN JENA. Your Account is successfully created on this website with your email: ${user.email}`
+//         }).catch(err => {
+//             return res.status(404).json({ success: false, message: "resend api down", error: err.message })
+//         });
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "User Registered Successfully."
+//         });
+
+//     } catch (err) {
+//         return res.status(500).json({
+//             success: false,
+//             message: "Internal Server Error.",
+//             error: err.message
+//         });
+//     }
+// };
+
 export const register = async (req, res) => {
 
+    console.log("➡️ Register API called");
+
     const { name, email, password } = req.body;
+    console.log("📩 Request body:", { name, email });
 
     if (!name || !email || !password) {
+        console.log("❌ Missing fields");
         return res.status(400).json({
             success: false,
             message: "All Fields Are Required."
@@ -70,17 +143,21 @@ export const register = async (req, res) => {
     }
 
     try {
+        console.log("🔍 Checking if user exists...");
         const userExist = await User.findOne({ email });
 
         if (userExist) {
+            console.log("⚠️ User already exists");
             return res.status(401).json({
                 success: false,
                 message: "User Already Exist."
             });
         }
 
+        console.log("🔐 Hashing password...");
         const hashPassword = await bcyrpt.hash(password, 10);
 
+        console.log("🧑 Creating new user...");
         const user = new User({
             name,
             email,
@@ -88,7 +165,9 @@ export const register = async (req, res) => {
         });
 
         await user.save();
+        console.log("✅ User saved in DB:", user._id);
 
+        console.log("🔑 Generating JWT...");
         const token = jwt.sign(
             { id: user._id },
             process.env.JWT_SECRET,
@@ -102,23 +181,33 @@ export const register = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        // Send email asynchronously (fire & forget)
-        resend.emails.send({
-            from: "Auth System <onboarding@email.wevadmedia.com>",
-            to: user.email,
-            subject: "Welcome to Authentication Project",
-            replyTo: process.env.EMAIL_REPLY_TO,
-            text: `Welcome ${user.name} to Authentication Project created by BIMOCHAN JENA. Your Account is successfully created on this website with your email: ${user.email}`
-        }).catch(err => {
-            return res.status(404).json({ success: false, message: "resend api down", error: err.message })
-        });
+        console.log("🍪 Token cookie set");
 
+        // 🔥 EMAIL LOGS START
+        console.log("📤 Sending welcome email via Resend...");
+        try {
+            const emailResponse = await resend.emails.send({
+                from: "Auth System <onboarding@email.wevadmedia.com>",
+                to: user.email,
+                subject: "Welcome to Authentication Project",
+                replyTo: process.env.EMAIL_REPLY_TO,
+                text: `Welcome ${user.name} to Authentication Project created by BIMOCHAN JENA.`
+            });
+
+            console.log("📧 Email sent successfully:", emailResponse);
+        } catch (emailErr) {
+            console.error("❌ Email failed:", emailErr.message);
+        }
+        // 🔥 EMAIL LOGS END
+
+        console.log("🎉 Registration complete");
         return res.status(200).json({
             success: true,
             message: "User Registered Successfully."
         });
 
     } catch (err) {
+        console.error("🔥 Register error:", err.message);
         return res.status(500).json({
             success: false,
             message: "Internal Server Error.",
@@ -126,6 +215,7 @@ export const register = async (req, res) => {
         });
     }
 };
+
 
 
 // login function
