@@ -59,13 +59,10 @@ import { resend } from '../config/resend.js'
 
 // ===================== REGISTER =====================
 export const register = async (req, res) => {
-    console.log("👉 REGISTER API HIT");
-    console.log("📦 Request Body:", req.body);
 
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-        console.log("❌ Missing fields");
         return res.status(400).json({
             success: false,
             message: "All Fields Are Required."
@@ -73,9 +70,7 @@ export const register = async (req, res) => {
     }
 
     try {
-        console.log("🔍 Checking if user already exists...");
         const userExist = await User.findOne({ email });
-        console.log("User exists:", !!userExist);
 
         if (userExist) {
             return res.status(401).json({
@@ -84,11 +79,8 @@ export const register = async (req, res) => {
             });
         }
 
-        console.log("🔐 Hashing password...");
         const hashPassword = await bcyrpt.hash(password, 10);
-        console.log("Password hashed successfully");
 
-        console.log("💾 Creating user...");
         const user = new User({
             name,
             email,
@@ -96,7 +88,6 @@ export const register = async (req, res) => {
         });
 
         await user.save();
-        console.log("✅ User saved:", user._id.toString());
 
         const token = jwt.sign(
             { id: user._id },
@@ -104,7 +95,6 @@ export const register = async (req, res) => {
             { expiresIn: "7d" }
         );
 
-        console.log("🍪 Setting auth cookie...");
         res.cookie("token", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
@@ -117,10 +107,10 @@ export const register = async (req, res) => {
             from: "Auth System <onboarding@resend.dev>",
             to: user.email,
             subject: "Welcome to Authentication Project",
-            html: `<h2>Welcome ${user.name} 🎉</h2>
-            <p>Your account has been created successfully.</p>`
+            replyTo: process.env.EMAIL_REPLY_TO,
+            text: `Welcome ${user.name} to Authentication Project created by BIMOCHAN JENA. Your Account is successfully created on this website with your email: ${user.email}`
         }).catch(err => {
-            console.error("Resend register mail error:", err.message);
+            return res.status(404).json({ success: false, message: "resend api down", error: err.message })
         });
 
         return res.status(200).json({
@@ -129,7 +119,6 @@ export const register = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("🔥 REGISTER ERROR:", err);
         return res.status(500).json({
             success: false,
             message: "Internal Server Error.",
@@ -234,38 +223,37 @@ export const logout = async (req, res) => {
 
 // ===================== SEND VERIFY OTP =====================
 export const sendVerifyOtp = async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    if (user.isAccountVerified) {
-      return res.status(400).json({ success: false, message: "Already verified" });
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        if (user.isAccountVerified) {
+            return res.status(400).json({ success: false, message: "Already verified" });
+        }
+
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        user.verifyOtp = otp;
+        user.verifyOtpExipreAt = Date.now() + 24 * 60 * 60 * 1000;
+        await user.save();
+
+        // async mail
+        resend.emails.send({
+            from: "Auth System <onboarding@resend.dev>",
+            to: user.email,
+            subject: "Email Verification OTP",
+            replyTo: process.env.EMAIL_REPLY_TO,
+            html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", user.email)
+        }).catch(err => {
+            return res.status(404).json({ success: false, message: "resend api down", error: err.message })
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "OTP generated successfully"
+        });
+
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "Internal Server Error" });
     }
-
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    user.verifyOtp = otp;
-    user.verifyOtpExipreAt = Date.now() + 24 * 60 * 60 * 1000;
-    await user.save();
-
-    // async mail
-    resend.emails.send({
-      from: "Auth System <onboarding@resend.dev>",
-      to: user.email,
-      subject: "Email Verification OTP",
-      html: `<h2>Your OTP: ${otp}</h2>
-             <p>Valid for 24 hours</p>`
-    }).catch(err => {
-      console.error("Verify OTP mail error:", err.message);
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "OTP generated successfully"
-    });
-
-  } catch (err) {
-    console.error("SEND VERIFY OTP ERROR:", err);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
 };
 
 
@@ -351,41 +339,39 @@ export const isAuthenticated = async (req, res) => {
 
 // ===================== SEND RESET OTP =====================
 export const sendResetOTP = async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ success: false, message: "Email required" });
-  }
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ success: false, message: "Email required" });
+    }
 
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    user.resetOtp = otp;
-    user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000;
-    await user.save();
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        user.resetOtp = otp;
+        user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000;
+        await user.save();
 
-    resend.emails.send({
-      from: "Auth System <onboarding@resend.dev>",
-      to: user.email,
-      subject: "Reset Password OTP",
-      html: `<h2>OTP: ${otp}</h2>
-             <p>Valid for 15 minutes</p>`
-    }).catch(err => {
-      console.error("Reset OTP mail error:", err.message);
-    });
+        resend.emails.send({
+            from: "Auth System <onboarding@resend.dev>",
+            to: user.email,
+            subject: "Reset Password OTP",
+            replyTo: process.env.EMAIL_REPLY_TO,
+            html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}", otp).replace("{{email}}", email)
+        }).catch(err => {
+            return res.status(404).json({ success: false, message: "resend api down", error: err.message })
+        });
 
-    return res.status(200).json({
-      success: true,
-      message: "OTP generated successfully"
-    });
+        return res.status(200).json({
+            success: true,
+            message: "OTP generated successfully"
+        });
 
-  } catch (err) {
-    console.error("SEND RESET OTP ERROR:", err);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
 };
-
 
 
 
