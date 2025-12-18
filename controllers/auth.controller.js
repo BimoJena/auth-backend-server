@@ -104,7 +104,7 @@ export const register = async (req, res) => {
 
         // Send email asynchronously (fire & forget)
         resend.emails.send({
-            from: "Auth System <onboarding@resend.dev>",
+            from: "Auth System <onboarding@email.wevadmedia.com>",
             to: user.email,
             subject: "Welcome to Authentication Project",
             replyTo: process.env.EMAIL_REPLY_TO,
@@ -237,7 +237,8 @@ export const sendVerifyOtp = async (req, res) => {
 
         // async mail
         resend.emails.send({
-            from: "Auth System <onboarding@resend.dev>",
+            // from: "Auth System <onboarding@resend.dev>",
+            from: "Auth System <onboarding@email.wevadmedia.com>",
             to: user.email,
             subject: "Email Verification OTP",
             replyTo: process.env.EMAIL_REPLY_TO,
@@ -354,7 +355,7 @@ export const sendResetOTP = async (req, res) => {
         await user.save();
 
         resend.emails.send({
-            from: "Auth System <onboarding@resend.dev>",
+            from: "Auth System <onboarding@email.wevadmedia.com>",
             to: user.email,
             subject: "Reset Password OTP",
             replyTo: process.env.EMAIL_REPLY_TO,
